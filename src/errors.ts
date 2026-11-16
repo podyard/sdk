@@ -27,6 +27,7 @@ export const PodyardErrorCodes = {
   UNSUPPORTED_MEDIA_TYPE: "unsupported_media_type",
   NOT_IMPLEMENTED: "not_implemented",
   GATEWAY_TIMEOUT: "gateway_timeout",
+  INVALID_RESPONSE: "invalid_response",
 } as const;
 
 export type PodyardErrorCode =
@@ -50,7 +51,7 @@ export class PodyardError extends FrontalError<PodyardErrorCode> {
 
   constructor(
     message: string,
-    options: PodyardErrorOptions = { code: "api_error" }
+    options: PodyardErrorOptions = { code: "api_error" },
   ) {
     super(message, options);
   }

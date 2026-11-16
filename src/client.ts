@@ -1,8 +1,4 @@
-// NOTE: @podyard/config is private and not publishable, so the SDK cannot
-// import it directly. The base URL default is kept in sync with
-// config/podyard.ts (podyard.api.base_url) by the CI config-drift check.
-const DEFAULT_BASE_URL = "https://api.podyard.dev";
-
+import type * as z from "zod";
 import type { PodyardErrorCode } from "./errors";
 import { PodyardError, PodyardErrorCodes } from "./errors";
 import type {
@@ -30,15 +26,34 @@ import type {
   UsageEvent,
   Webhook,
 } from "./types";
+import {
+  apiKeySchema,
+  createApiKeyResponseSchema,
+  execResultSchema,
+  forkSnapshotResponseSchema,
+  limitsResponseSchema,
+  listResponseSchema,
+  podSchema,
+  snapshotSchema,
+  templateSchema,
+  usageEventSchema,
+  validateResponse,
+  webhookSchema,
+} from "./validation";
 
-const TRAILING_SLASH = /\/$/;
+// NOTE: @podyard/config is private and not publishable, so the SDK cannot
+// import it directly. The base URL default is kept in sync with
+// config/podyard.ts (podyard.api.base_url) by the CI config-drift check.
+const DEFAULT_BASE_URL = "https://api.podyard.dev";
+
+const TRAILING_SLASH = /\/$/u;
 const ULID = "0-9A-HJKMNP-TV-Z";
 
 /** Parse a Podyard error envelope into a PodyardError. */
 function parseApiError(
   status: number,
   text: string,
-  _requestId: string | null
+  _requestId: string | null,
 ): PodyardError {
   let body: PodyardErrorBody | undefined;
   try {
@@ -57,7 +72,7 @@ function parseApiError(
         message: body?.message ?? "The Podyard API returned an error.",
         hint: body?.docsUrl ? `See ${body.docsUrl}` : undefined,
       },
-    }
+    },
   );
 }
 
@@ -139,28 +154,36 @@ export class PodyardClient {
   readonly pods = {
     list: (params: ListParams = {}): Promise<ListResponse<Pod>> => {
       const qs = toQueryString(params);
-      return this.request<ListResponse<Pod>>(`/v1/pods${qs}`, {
-        method: "GET",
-      });
+      return this.request<ListResponse<Pod>>(
+        `/v1/pods${qs}`,
+        { method: "GET" },
+        listResponseSchema(podSchema),
+      );
     },
     create: (
       input: CreatePodRequest = {},
-      options: { idempotencyKey?: string } = {}
+      options: { idempotencyKey?: string } = {},
     ): Promise<CreatePodResponse> =>
-      this.request<CreatePodResponse>("/v1/pods", {
-        method: "POST",
-        body: JSON.stringify(input),
-        headers: {
-          ...(options.idempotencyKey
-            ? { "Idempotency-Key": options.idempotencyKey }
-            : {}),
+      this.request<CreatePodResponse>(
+        "/v1/pods",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+          headers: {
+            ...(options.idempotencyKey
+              ? { "Idempotency-Key": options.idempotencyKey }
+              : {}),
+          },
         },
-      }),
+        podSchema,
+      ),
     get: (id: string): Promise<Pod> => {
       assertPodId(id);
-      return this.request<Pod>(`/v1/pods/${encodeURIComponent(id)}`, {
-        method: "GET",
-      });
+      return this.request<Pod>(
+        `/v1/pods/${encodeURIComponent(id)}`,
+        { method: "GET" },
+        podSchema,
+      );
     },
     delete: async (id: string): Promise<void> => {
       assertPodId(id);
@@ -175,22 +198,25 @@ export class PodyardClient {
         {
           method: "POST",
           body: JSON.stringify(input),
-        }
+        },
+        execResultSchema,
       );
     },
     fs: {
-      read: (id: string, path: string): Promise<Uint8Array> => {
+      read: async (id: string, path: string): Promise<Uint8Array> => {
         assertPodId(id);
-        return this.rawRequest(
+        const res = await this.rawRequest(
           `/v1/pods/${encodeURIComponent(id)}/fs/${encodePath(path)}`,
           { method: "GET" },
-          "application/octet-stream"
-        ).then((res) => res.arrayBuffer().then((AB) => new Uint8Array(AB)));
+          "application/octet-stream",
+        );
+        const ab = await res.arrayBuffer();
+        return new Uint8Array(ab);
       },
       write: (
         id: string,
         path: string,
-        input: FsWriteRequest | Uint8Array | string
+        input: FsWriteRequest | Uint8Array | string,
       ): Promise<void> => {
         assertPodId(id);
         let body: string;
@@ -212,14 +238,14 @@ export class PodyardClient {
             method: "PUT",
             body,
             headers: { "content-type": contentType },
-          }
+          },
         );
       },
       delete: async (id: string, path: string): Promise<void> => {
         assertPodId(id);
         await this.request<void>(
           `/v1/pods/${encodeURIComponent(id)}/fs/${encodePath(path)}`,
-          { method: "DELETE" }
+          { method: "DELETE" },
         );
       },
       /**
@@ -235,52 +261,59 @@ export class PodyardClient {
             public: {
               message: "Directory listing is not yet supported. Coming soon.",
             },
-          }
+          },
         );
       },
     },
     snapshot: (
       id: string,
-      input: CreateSnapshotRequest = {}
+      input: CreateSnapshotRequest = {},
     ): Promise<Snapshot> => {
       assertPodId(id);
       return this.request<Snapshot>(
         `/v1/pods/${encodeURIComponent(id)}/snapshot`,
-        { method: "POST", body: JSON.stringify(input) }
+        { method: "POST", body: JSON.stringify(input) },
+        snapshotSchema,
       );
     },
     listSnapshots: (
       id: string,
-      params: ListParams = {}
+      params: ListParams = {},
     ): Promise<ListResponse<Snapshot>> => {
       assertPodId(id);
       const qs = toQueryString(params);
       return this.request<ListResponse<Snapshot>>(
         `/v1/pods/${encodeURIComponent(id)}/snapshots${qs}`,
-        { method: "GET" }
+        { method: "GET" },
+        listResponseSchema(snapshotSchema),
       );
     },
     fork: (
       id: string,
-      input: ForkSnapshotRequest = {}
+      input: ForkSnapshotRequest = {},
     ): Promise<ForkSnapshotResponse> => {
       assertPodId(id);
       return this.request<ForkSnapshotResponse>(
         `/v1/pods/${encodeURIComponent(id)}/fork`,
-        { method: "POST", body: JSON.stringify(input) }
+        { method: "POST", body: JSON.stringify(input) },
+        forkSnapshotResponseSchema,
       );
     },
     sleep: (id: string): Promise<Pod> => {
       assertPodId(id);
-      return this.request<Pod>(`/v1/pods/${encodeURIComponent(id)}/sleep`, {
-        method: "POST",
-      });
+      return this.request<Pod>(
+        `/v1/pods/${encodeURIComponent(id)}/sleep`,
+        { method: "POST" },
+        podSchema,
+      );
     },
     wake: (id: string): Promise<Pod> => {
       assertPodId(id);
-      return this.request<Pod>(`/v1/pods/${encodeURIComponent(id)}/wake`, {
-        method: "POST",
-      });
+      return this.request<Pod>(
+        `/v1/pods/${encodeURIComponent(id)}/wake`,
+        { method: "POST" },
+        podSchema,
+      );
     },
   };
 
@@ -291,18 +324,21 @@ export class PodyardClient {
   readonly snapshots = {
     get: (id: string): Promise<Snapshot> => {
       assertSnapshotId(id);
-      return this.request<Snapshot>(`/v1/snapshots/${encodeURIComponent(id)}`, {
-        method: "GET",
-      });
+      return this.request<Snapshot>(
+        `/v1/snapshots/${encodeURIComponent(id)}`,
+        { method: "GET" },
+        snapshotSchema,
+      );
     },
     fork: (
       id: string,
-      input: ForkSnapshotRequest = {}
+      input: ForkSnapshotRequest = {},
     ): Promise<ForkSnapshotResponse> => {
       assertSnapshotId(id);
       return this.request<ForkSnapshotResponse>(
         `/v1/snapshots/${encodeURIComponent(id)}/fork`,
-        { method: "POST", body: JSON.stringify(input) }
+        { method: "POST", body: JSON.stringify(input) },
+        forkSnapshotResponseSchema,
       );
     },
   };
@@ -314,20 +350,28 @@ export class PodyardClient {
   readonly templates = {
     list: (params: ListParams = {}): Promise<ListResponse<Template>> => {
       const qs = toQueryString(params);
-      return this.request<ListResponse<Template>>(`/v1/templates${qs}`, {
-        method: "GET",
-      });
+      return this.request<ListResponse<Template>>(
+        `/v1/templates${qs}`,
+        { method: "GET" },
+        listResponseSchema(templateSchema),
+      );
     },
     create: (input: CreateTemplateRequest): Promise<Template> =>
-      this.request<Template>("/v1/templates", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
+      this.request<Template>(
+        "/v1/templates",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+        templateSchema,
+      ),
     get: (id: string): Promise<Template> => {
       assertTemplateId(id);
-      return this.request<Template>(`/v1/templates/${encodeURIComponent(id)}`, {
-        method: "GET",
-      });
+      return this.request<Template>(
+        `/v1/templates/${encodeURIComponent(id)}`,
+        { method: "GET" },
+        templateSchema,
+      );
     },
     delete: async (id: string): Promise<void> => {
       assertTemplateId(id);
@@ -344,9 +388,11 @@ export class PodyardClient {
   readonly usage = {
     list: (params: ListParams = {}): Promise<ListResponse<UsageEvent>> => {
       const qs = toQueryString(params);
-      return this.request<ListResponse<UsageEvent>>(`/v1/usage${qs}`, {
-        method: "GET",
-      });
+      return this.request<ListResponse<UsageEvent>>(
+        `/v1/usage${qs}`,
+        { method: "GET" },
+        listResponseSchema(usageEventSchema),
+      );
     },
   };
 
@@ -356,9 +402,11 @@ export class PodyardClient {
 
   readonly limits = {
     get: (): Promise<import("./types").LimitsResponse> =>
-      this.request<import("./types").LimitsResponse>("/v1/limits", {
-        method: "GET",
-      }),
+      this.request<import("./types").LimitsResponse>(
+        "/v1/limits",
+        { method: "GET" },
+        limitsResponseSchema,
+      ),
   };
 
   // -----------------------------------------------------------------------
@@ -368,19 +416,27 @@ export class PodyardClient {
   readonly webhooks = {
     list: (params: ListParams = {}): Promise<ListResponse<Webhook>> => {
       const qs = toQueryString(params);
-      return this.request<ListResponse<Webhook>>(`/v1/webhooks${qs}`, {
-        method: "GET",
-      });
+      return this.request<ListResponse<Webhook>>(
+        `/v1/webhooks${qs}`,
+        { method: "GET" },
+        listResponseSchema(webhookSchema),
+      );
     },
     create: (input: CreateWebhookRequest): Promise<Webhook> =>
-      this.request<Webhook>("/v1/webhooks", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
+      this.request<Webhook>(
+        "/v1/webhooks",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+        webhookSchema,
+      ),
     get: (id: string): Promise<Webhook> =>
-      this.request<Webhook>(`/v1/webhooks/${encodeURIComponent(id)}`, {
-        method: "GET",
-      }),
+      this.request<Webhook>(
+        `/v1/webhooks/${encodeURIComponent(id)}`,
+        { method: "GET" },
+        webhookSchema,
+      ),
     delete: async (id: string): Promise<void> => {
       await this.request<void>(`/v1/webhooks/${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -394,12 +450,20 @@ export class PodyardClient {
 
   readonly keys = {
     list: (): Promise<ListResponse<ApiKey>> =>
-      this.request<ListResponse<ApiKey>>("/v1/keys", { method: "GET" }),
+      this.request<ListResponse<ApiKey>>(
+        "/v1/keys",
+        { method: "GET" },
+        listResponseSchema(apiKeySchema),
+      ),
     create: (input: CreateApiKeyRequest = {}): Promise<CreateApiKeyResponse> =>
-      this.request<CreateApiKeyResponse>("/v1/keys", {
-        method: "POST",
-        body: JSON.stringify(input),
-      }),
+      this.request<CreateApiKeyResponse>(
+        "/v1/keys",
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+        },
+        createApiKeyResponseSchema,
+      ),
     revoke: async (id: string): Promise<void> => {
       await this.request<void>(`/v1/keys/${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -417,13 +481,13 @@ export class PodyardClient {
    */
   async *execStream(
     id: string,
-    input: ExecRequest
+    input: ExecRequest,
   ): AsyncGenerator<ExecEvent, void, unknown> {
     assertPodId(id);
     const res = await this.rawRequest(
       `/v1/pods/${encodeURIComponent(id)}/exec`,
       { method: "POST", body: JSON.stringify(input) },
-      "application/x-ndjson"
+      "application/x-ndjson",
     );
     if (!res.body) {
       return;
@@ -432,7 +496,8 @@ export class PodyardClient {
     const decoder = new TextDecoder();
     let buffer = "";
     try {
-      for (;;) {
+      // biome-ignore lint/performance/noAwaitInLoops: streaming requires sequential reads
+      while (true) {
         const { done, value } = await reader.read();
         if (done) {
           break;
@@ -468,7 +533,11 @@ export class PodyardClient {
   // Low-level request helpers
   // -----------------------------------------------------------------------
 
-  private async request<T>(path: string, init: RequestInit): Promise<T> {
+  private async request<T>(
+    path: string,
+    init: RequestInit,
+    schema?: z.ZodType<T>,
+  ): Promise<T> {
     const res = await this.rawRequest(path, init, "application/json");
 
     const requestId = res.headers.get("x-request-id");
@@ -490,8 +559,9 @@ export class PodyardClient {
     if (!text) {
       return undefined as T;
     }
+    let parsed: unknown;
     try {
-      return JSON.parse(text) as T;
+      parsed = JSON.parse(text);
     } catch (cause) {
       throw new PodyardError("Invalid JSON response from Podyard API", {
         code: PodyardErrorCodes.INVALID_JSON,
@@ -500,12 +570,19 @@ export class PodyardClient {
         public: { message: "Received an unexpected response from Podyard." },
       });
     }
+    if (schema) {
+      return validateResponse(schema, parsed, {
+        endpoint: path.split("?")[0],
+        requestId,
+      });
+    }
+    return parsed as T;
   }
 
   private async rawRequest(
     path: string,
     init: RequestInit,
-    accept: string
+    accept: string,
   ): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
@@ -556,14 +633,14 @@ export class PodyardClient {
 
 function toQueryString(params: object): string {
   const entries = Object.entries(params).filter(
-    ([, v]) => v !== undefined && v !== null && v !== ""
+    ([, v]) => v !== undefined && v !== null && v !== "",
   );
   if (entries.length === 0) {
     return "";
   }
   const qs = entries
     .map(
-      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
     )
     .join("&");
   return `?${qs}`;
@@ -578,9 +655,9 @@ function encodePath(path: string): string {
 }
 
 const ULID_PATTERN = `[${ULID}]{26}`;
-const POD_ID_RE = new RegExp(`^pod_${ULID_PATTERN}$`);
-const SNAPSHOT_ID_RE = new RegExp(`^snap_${ULID_PATTERN}$`);
-const TEMPLATE_ID_RE = new RegExp(`^tpl_${ULID_PATTERN}$`);
+const POD_ID_RE = new RegExp(`^pod_${ULID_PATTERN}$`, "u");
+const SNAPSHOT_ID_RE = new RegExp(`^snap_${ULID_PATTERN}$`, "u");
+const TEMPLATE_ID_RE = new RegExp(`^tpl_${ULID_PATTERN}$`, "u");
 
 function assertPodId(id: string): boolean {
   if (!POD_ID_RE.test(id)) {
@@ -620,5 +697,3 @@ function assertTemplateId(id: string): boolean {
   }
   return true;
 }
-
-export default PodyardClient;

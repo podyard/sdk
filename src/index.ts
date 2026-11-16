@@ -1,13 +1,6 @@
-export { default, PodyardClient } from "./client";
-export type {
-  PodyardErrorCode,
-  PodyardErrorOptions,
-} from "./errors";
-export {
-  PODYARD_ERROR_SCOPE,
-  PodyardError,
-  PodyardErrorCodes,
-} from "./errors";
+export { PodyardClient } from "./client";
+export type { PodyardErrorCode, PodyardErrorOptions } from "./errors";
+export { PODYARD_ERROR_SCOPE, PodyardError, PodyardErrorCodes } from "./errors";
 export type {
   ApiKey,
   CreateApiKeyRequest,

@@ -24,7 +24,7 @@ const VALID_POD = {
 describe("isoTimestamp", () => {
   it("accepts a valid ISO-8601 timestamp", () => {
     expect(isoTimestamp.safeParse("2026-01-01T00:00:00.000Z").success).toBe(
-      true,
+      true
     );
   });
 
@@ -50,8 +50,8 @@ describe("validateResponse", () => {
         {
           endpoint: "GET /v1/pods/:id",
           requestId: "req_2",
-        },
-      ),
+        }
+      )
     ).toThrowError();
 
     try {
@@ -61,13 +61,13 @@ describe("validateResponse", () => {
         {
           endpoint: "GET /v1/pods/:id",
           requestId: "req_2",
-        },
+        }
       );
     } catch (err) {
       expect(err).toBeInstanceOf(Error);
       expect(isFrontalError(err)).toBe(true);
       expect((err as Error & { code: string }).code).toBe(
-        PodyardErrorCodes.INVALID_RESPONSE,
+        PodyardErrorCodes.INVALID_RESPONSE
       );
       expect((err as Error & { statusCode: number }).statusCode).toBe(502);
       expect((err as Error & { requestId?: string }).requestId).toBe("req_2");
@@ -82,7 +82,7 @@ describe("validateResponse", () => {
         {
           endpoint: "GET /v1/pods/:id",
           requestId: "req_3",
-        },
+        }
       );
       expect.unreachable("expected validateResponse to throw");
     } catch (err) {
@@ -98,7 +98,7 @@ describe("validateResponse", () => {
         {
           endpoint: "GET /v1/pods/:id",
           requestId: "req_4",
-        },
+        }
       );
       expect.unreachable("expected validateResponse to throw");
     } catch (err) {
@@ -118,7 +118,7 @@ describe("schema coverage", () => {
         retained: true,
         sizeBytes: 1024,
         updatedAt: "2026-01-01T00:00:00.000Z",
-      }).success,
+      }).success
     ).toBe(true);
   });
 
@@ -129,7 +129,7 @@ describe("schema coverage", () => {
         hasMore: false,
         items: [VALID_POD],
         next: null,
-      }).success,
+      }).success
     ).toBe(true);
   });
 
@@ -137,7 +137,7 @@ describe("schema coverage", () => {
     // zod v4 objects strip unknown keys, but validation must not *fail* when
     // the API adds a field the SDK has not modeled yet.
     expect(
-      podSchema.safeParse({ ...VALID_POD, extra: "new-field" }).success,
+      podSchema.safeParse({ ...VALID_POD, extra: "new-field" }).success
     ).toBe(true);
   });
 });

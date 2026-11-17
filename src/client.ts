@@ -53,7 +53,7 @@ const ULID = "0-9A-HJKMNP-TV-Z";
 function parseApiError(
   status: number,
   text: string,
-  _requestId: string | null,
+  _requestId: string | null
 ): PodyardError {
   let body: PodyardErrorBody | undefined;
   try {
@@ -72,7 +72,7 @@ function parseApiError(
         message: body?.message ?? "The Podyard API returned an error.",
         hint: body?.docsUrl ? `See ${body.docsUrl}` : undefined,
       },
-    },
+    }
   );
 }
 
@@ -157,12 +157,12 @@ export class PodyardClient {
       return this.request<ListResponse<Pod>>(
         `/v1/pods${qs}`,
         { method: "GET" },
-        listResponseSchema(podSchema),
+        listResponseSchema(podSchema)
       );
     },
     create: (
       input: CreatePodRequest = {},
-      options: { idempotencyKey?: string } = {},
+      options: { idempotencyKey?: string } = {}
     ): Promise<CreatePodResponse> =>
       this.request<CreatePodResponse>(
         "/v1/pods",
@@ -175,14 +175,14 @@ export class PodyardClient {
               : {}),
           },
         },
-        podSchema,
+        podSchema
       ),
     get: (id: string): Promise<Pod> => {
       assertPodId(id);
       return this.request<Pod>(
         `/v1/pods/${encodeURIComponent(id)}`,
         { method: "GET" },
-        podSchema,
+        podSchema
       );
     },
     delete: async (id: string): Promise<void> => {
@@ -199,7 +199,7 @@ export class PodyardClient {
           method: "POST",
           body: JSON.stringify(input),
         },
-        execResultSchema,
+        execResultSchema
       );
     },
     fs: {
@@ -208,7 +208,7 @@ export class PodyardClient {
         const res = await this.rawRequest(
           `/v1/pods/${encodeURIComponent(id)}/fs/${encodePath(path)}`,
           { method: "GET" },
-          "application/octet-stream",
+          "application/octet-stream"
         );
         const ab = await res.arrayBuffer();
         return new Uint8Array(ab);
@@ -216,7 +216,7 @@ export class PodyardClient {
       write: (
         id: string,
         path: string,
-        input: FsWriteRequest | Uint8Array | string,
+        input: FsWriteRequest | Uint8Array | string
       ): Promise<void> => {
         assertPodId(id);
         let body: string;
@@ -238,14 +238,14 @@ export class PodyardClient {
             method: "PUT",
             body,
             headers: { "content-type": contentType },
-          },
+          }
         );
       },
       delete: async (id: string, path: string): Promise<void> => {
         assertPodId(id);
         await this.request<void>(
           `/v1/pods/${encodeURIComponent(id)}/fs/${encodePath(path)}`,
-          { method: "DELETE" },
+          { method: "DELETE" }
         );
       },
       /**
@@ -261,42 +261,42 @@ export class PodyardClient {
             public: {
               message: "Directory listing is not yet supported. Coming soon.",
             },
-          },
+          }
         );
       },
     },
     snapshot: (
       id: string,
-      input: CreateSnapshotRequest = {},
+      input: CreateSnapshotRequest = {}
     ): Promise<Snapshot> => {
       assertPodId(id);
       return this.request<Snapshot>(
         `/v1/pods/${encodeURIComponent(id)}/snapshot`,
         { method: "POST", body: JSON.stringify(input) },
-        snapshotSchema,
+        snapshotSchema
       );
     },
     listSnapshots: (
       id: string,
-      params: ListParams = {},
+      params: ListParams = {}
     ): Promise<ListResponse<Snapshot>> => {
       assertPodId(id);
       const qs = toQueryString(params);
       return this.request<ListResponse<Snapshot>>(
         `/v1/pods/${encodeURIComponent(id)}/snapshots${qs}`,
         { method: "GET" },
-        listResponseSchema(snapshotSchema),
+        listResponseSchema(snapshotSchema)
       );
     },
     fork: (
       id: string,
-      input: ForkSnapshotRequest = {},
+      input: ForkSnapshotRequest = {}
     ): Promise<ForkSnapshotResponse> => {
       assertPodId(id);
       return this.request<ForkSnapshotResponse>(
         `/v1/pods/${encodeURIComponent(id)}/fork`,
         { method: "POST", body: JSON.stringify(input) },
-        forkSnapshotResponseSchema,
+        forkSnapshotResponseSchema
       );
     },
     sleep: (id: string): Promise<Pod> => {
@@ -304,7 +304,7 @@ export class PodyardClient {
       return this.request<Pod>(
         `/v1/pods/${encodeURIComponent(id)}/sleep`,
         { method: "POST" },
-        podSchema,
+        podSchema
       );
     },
     wake: (id: string): Promise<Pod> => {
@@ -312,7 +312,7 @@ export class PodyardClient {
       return this.request<Pod>(
         `/v1/pods/${encodeURIComponent(id)}/wake`,
         { method: "POST" },
-        podSchema,
+        podSchema
       );
     },
   };
@@ -327,18 +327,18 @@ export class PodyardClient {
       return this.request<Snapshot>(
         `/v1/snapshots/${encodeURIComponent(id)}`,
         { method: "GET" },
-        snapshotSchema,
+        snapshotSchema
       );
     },
     fork: (
       id: string,
-      input: ForkSnapshotRequest = {},
+      input: ForkSnapshotRequest = {}
     ): Promise<ForkSnapshotResponse> => {
       assertSnapshotId(id);
       return this.request<ForkSnapshotResponse>(
         `/v1/snapshots/${encodeURIComponent(id)}/fork`,
         { method: "POST", body: JSON.stringify(input) },
-        forkSnapshotResponseSchema,
+        forkSnapshotResponseSchema
       );
     },
   };
@@ -353,7 +353,7 @@ export class PodyardClient {
       return this.request<ListResponse<Template>>(
         `/v1/templates${qs}`,
         { method: "GET" },
-        listResponseSchema(templateSchema),
+        listResponseSchema(templateSchema)
       );
     },
     create: (input: CreateTemplateRequest): Promise<Template> =>
@@ -363,14 +363,14 @@ export class PodyardClient {
           method: "POST",
           body: JSON.stringify(input),
         },
-        templateSchema,
+        templateSchema
       ),
     get: (id: string): Promise<Template> => {
       assertTemplateId(id);
       return this.request<Template>(
         `/v1/templates/${encodeURIComponent(id)}`,
         { method: "GET" },
-        templateSchema,
+        templateSchema
       );
     },
     delete: async (id: string): Promise<void> => {
@@ -391,7 +391,7 @@ export class PodyardClient {
       return this.request<ListResponse<UsageEvent>>(
         `/v1/usage${qs}`,
         { method: "GET" },
-        listResponseSchema(usageEventSchema),
+        listResponseSchema(usageEventSchema)
       );
     },
   };
@@ -405,7 +405,7 @@ export class PodyardClient {
       this.request<import("./types").LimitsResponse>(
         "/v1/limits",
         { method: "GET" },
-        limitsResponseSchema,
+        limitsResponseSchema
       ),
   };
 
@@ -419,7 +419,7 @@ export class PodyardClient {
       return this.request<ListResponse<Webhook>>(
         `/v1/webhooks${qs}`,
         { method: "GET" },
-        listResponseSchema(webhookSchema),
+        listResponseSchema(webhookSchema)
       );
     },
     create: (input: CreateWebhookRequest): Promise<Webhook> =>
@@ -429,13 +429,13 @@ export class PodyardClient {
           method: "POST",
           body: JSON.stringify(input),
         },
-        webhookSchema,
+        webhookSchema
       ),
     get: (id: string): Promise<Webhook> =>
       this.request<Webhook>(
         `/v1/webhooks/${encodeURIComponent(id)}`,
         { method: "GET" },
-        webhookSchema,
+        webhookSchema
       ),
     delete: async (id: string): Promise<void> => {
       await this.request<void>(`/v1/webhooks/${encodeURIComponent(id)}`, {
@@ -453,7 +453,7 @@ export class PodyardClient {
       this.request<ListResponse<ApiKey>>(
         "/v1/keys",
         { method: "GET" },
-        listResponseSchema(apiKeySchema),
+        listResponseSchema(apiKeySchema)
       ),
     create: (input: CreateApiKeyRequest = {}): Promise<CreateApiKeyResponse> =>
       this.request<CreateApiKeyResponse>(
@@ -462,7 +462,7 @@ export class PodyardClient {
           method: "POST",
           body: JSON.stringify(input),
         },
-        createApiKeyResponseSchema,
+        createApiKeyResponseSchema
       ),
     revoke: async (id: string): Promise<void> => {
       await this.request<void>(`/v1/keys/${encodeURIComponent(id)}`, {
@@ -481,13 +481,13 @@ export class PodyardClient {
    */
   async *execStream(
     id: string,
-    input: ExecRequest,
+    input: ExecRequest
   ): AsyncGenerator<ExecEvent, void, unknown> {
     assertPodId(id);
     const res = await this.rawRequest(
       `/v1/pods/${encodeURIComponent(id)}/exec`,
       { method: "POST", body: JSON.stringify(input) },
-      "application/x-ndjson",
+      "application/x-ndjson"
     );
     if (!res.body) {
       return;
@@ -495,14 +495,10 @@ export class PodyardClient {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let chunk = await reader.read();
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: streaming requires sequential reads
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
-        buffer += decoder.decode(value, { stream: true });
+      while (!chunk.done) {
+        buffer += decoder.decode(chunk.value, { stream: true });
         let newline: number = buffer.indexOf("\n");
         while (newline !== -1) {
           const line = buffer.slice(0, newline).trim();
@@ -516,6 +512,8 @@ export class PodyardClient {
           }
           newline = buffer.indexOf("\n");
         }
+        // biome-ignore lint/performance/noAwaitInLoops: streaming requires sequential reads
+        chunk = await reader.read();
       }
       if (buffer.trim()) {
         try {
@@ -536,7 +534,7 @@ export class PodyardClient {
   private async request<T>(
     path: string,
     init: RequestInit,
-    schema?: z.ZodType<T>,
+    schema?: z.ZodType<T>
   ): Promise<T> {
     const res = await this.rawRequest(path, init, "application/json");
 
@@ -582,7 +580,7 @@ export class PodyardClient {
   private async rawRequest(
     path: string,
     init: RequestInit,
-    accept: string,
+    accept: string
   ): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
@@ -633,14 +631,14 @@ export class PodyardClient {
 
 function toQueryString(params: object): string {
   const entries = Object.entries(params).filter(
-    ([, v]) => v !== undefined && v !== null && v !== "",
+    ([, v]) => v !== undefined && v !== null && v !== ""
   );
   if (entries.length === 0) {
     return "";
   }
   const qs = entries
     .map(
-      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
     )
     .join("&");
   return `?${qs}`;

@@ -180,8 +180,8 @@ throw new PodyardError("Sandbox sbx_123 is in a failed state", {
 | `pnpm typecheck`               | `tsc --noEmit`                                   |
 | `pnpm test`                    | Vitest (Node env)                                |
 | `pnpm test:coverage`           | Vitest with coverage report                      |
-| `pnpm lint`                    | Biome (lint + import ordering)                   |
-| `pnpm format` / `format:check` | Prettier (writes / verifies)                     |
+| `pnpm lint`                    | Biome + ultracite (lint + import ordering)       |
+| `pnpm format` / `format:check` | Biome + ultracite (writes / verifies)            |
 | `pnpm check`                   | typecheck → lint → format:check → test (CI gate) |
 
 ## Requirements

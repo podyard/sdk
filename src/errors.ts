@@ -51,7 +51,7 @@ export class PodyardError extends FrontalError<PodyardErrorCode> {
 
   constructor(
     message: string,
-    options: PodyardErrorOptions = { code: "api_error" },
+    options: PodyardErrorOptions = { code: "api_error" }
   ) {
     super(message, options);
   }

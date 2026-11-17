@@ -30,7 +30,7 @@ const maybeString = z.string().nullish();
 export function validateResponse<T>(
   schema: z.ZodType<T>,
   data: unknown,
-  context: { endpoint: string; requestId?: string | null },
+  context: { endpoint: string; requestId?: string | null }
 ): T {
   const result = schema.safeParse(data);
   if (result.success) {
@@ -53,7 +53,7 @@ export function validateResponse<T>(
           context.requestId ?? "unknown"
         } and endpoint ${context.endpoint}.`,
       },
-    },
+    }
   );
 }
 
@@ -164,7 +164,7 @@ export const limitsResponseSchema = z.object({
  * provided; omit it for endpoints whose items are not (yet) modeled.
  */
 export function listResponseSchema<T extends z.ZodTypeAny>(
-  item: T,
+  item: T
 ): z.ZodType<{
   hasMore: boolean;
   items: z.infer<T>[];

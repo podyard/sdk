@@ -5,7 +5,7 @@ import type { ListResponse, Pod, PodyardClientOptions } from "../src/types";
 
 const jsonResponse = (
   body: unknown,
-  init?: { status?: number; statusText?: string },
+  init?: { status?: number; statusText?: string }
 ): Response =>
   new Response(JSON.stringify(body), {
     status: init?.status ?? 200,
@@ -15,15 +15,18 @@ const jsonResponse = (
 
 describe("PodyardClient constructor", () => {
   it("throws MISSING_API_KEY when the key is absent", () => {
+    const construct = () => new PodyardClient({} as PodyardClientOptions);
+    expect(construct).toThrowError(PodyardError);
+
     let caught: unknown;
     try {
-      new PodyardClient({} as PodyardClientOptions);
+      construct();
     } catch (error) {
       caught = error;
     }
     expect(caught).toBeInstanceOf(PodyardError);
     expect((caught as PodyardError).code).toBe(
-      PodyardErrorCodes.MISSING_API_KEY,
+      PodyardErrorCodes.MISSING_API_KEY
     );
     expect((caught as PodyardError).scope).toBe("podyard");
   });
@@ -51,7 +54,7 @@ describe("PodyardClient.fromEnv", () => {
       expect.unreachable("should have thrown");
     } catch (error) {
       expect((error as PodyardError).code).toBe(
-        PodyardErrorCodes.MISSING_API_KEY,
+        PodyardErrorCodes.MISSING_API_KEY
       );
     }
   });
@@ -80,7 +83,7 @@ describe("PodyardClient.request", () => {
       await client.pods.list();
     } catch (error) {
       expect((error as PodyardError).code).toBe(
-        PodyardErrorCodes.NETWORK_FAILURE,
+        PodyardErrorCodes.NETWORK_FAILURE
       );
       expect((error as PodyardError).statusCode).toBe(502);
     }
@@ -88,7 +91,7 @@ describe("PodyardClient.request", () => {
 
   const apiCase = (
     status: number,
-    expectedCode: (typeof PodyardErrorCodes)[keyof typeof PodyardErrorCodes],
+    expectedCode: (typeof PodyardErrorCodes)[keyof typeof PodyardErrorCodes]
   ) => {
     it(`maps ${status} to ${expectedCode}`, async () => {
       const client = new PodyardClient({

@@ -46,7 +46,7 @@ describe("PodyardError", () => {
         code: PodyardErrorCodes.NETWORK_FAILURE,
         statusCode: 502,
         public: { message: "Could not reach the Podyard API." },
-      },
+      }
     );
 
     expect(error.message).toBe("Internal: connection refused on port 5432");

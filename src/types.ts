@@ -4,7 +4,7 @@ import type { PodyardErrorCode } from "./errors";
 // Client options
 // ---------------------------------------------------------------------------
 
-export interface PodyardClientOptions {
+export interface PodyardOptions {
   /** Podyard API key: `pyd_live_…` or `pyd_test_…`. */
   apiKey: string;
   /**

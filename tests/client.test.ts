@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { PodyardClient } from "../src/client";
+import { Podyard } from "../src/client";
 import { PodyardError, PodyardErrorCodes } from "../src/errors";
-import type { ListResponse, Pod, PodyardClientOptions } from "../src/types";
+import type { ListResponse, Pod, PodyardOptions } from "../src/types";
 
 const jsonResponse = (
   body: unknown,
@@ -13,9 +13,9 @@ const jsonResponse = (
     headers: { "content-type": "application/json" },
   });
 
-describe("PodyardClient constructor", () => {
+describe("Podyard constructor", () => {
   it("throws MISSING_API_KEY when the key is absent", () => {
-    const construct = () => new PodyardClient({} as PodyardClientOptions);
+    const construct = () => new Podyard({} as PodyardOptions);
     expect(construct).toThrowError(PodyardError);
 
     let caught: unknown;
@@ -32,7 +32,7 @@ describe("PodyardClient constructor", () => {
   });
 
   it("strips a trailing slash from the base URL", () => {
-    const client = new PodyardClient({
+    const client = new Podyard({
       apiKey: "pyd_test_key",
       baseUrl: "https://api.example.com/",
     });
@@ -41,16 +41,16 @@ describe("PodyardClient constructor", () => {
   });
 
   it("falls back to the default base URL", () => {
-    const client = new PodyardClient({ apiKey: "pyd_test_key" });
+    const client = new Podyard({ apiKey: "pyd_test_key" });
 
     expect(client.baseUrl).toBe("https://api.podyard.dev");
   });
 });
 
-describe("PodyardClient.fromEnv", () => {
+describe("Podyard.fromEnv", () => {
   it("throws MISSING_API_KEY when PODYARD_API_KEY is unset", () => {
     try {
-      PodyardClient.fromEnv({} as NodeJS.ProcessEnv);
+      Podyard.fromEnv({} as NodeJS.ProcessEnv);
       expect.unreachable("should have thrown");
     } catch (error) {
       expect((error as PodyardError).code).toBe(
@@ -60,7 +60,7 @@ describe("PodyardClient.fromEnv", () => {
   });
 
   it("reads the key from the provided env", () => {
-    const client = PodyardClient.fromEnv({
+    const client = Podyard.fromEnv({
       PODYARD_API_KEY: "pyd_test_env",
     } as NodeJS.ProcessEnv);
 
@@ -68,9 +68,9 @@ describe("PodyardClient.fromEnv", () => {
   });
 });
 
-describe("PodyardClient.request", () => {
+describe("Podyard.request", () => {
   it("throws NETWORK_FAILURE when fetch rejects", async () => {
-    const client = new PodyardClient({
+    const client = new Podyard({
       apiKey: "pyd_test_key",
       fetch: (() => {
         throw new TypeError("fetch failed");
@@ -94,7 +94,7 @@ describe("PodyardClient.request", () => {
     expectedCode: (typeof PodyardErrorCodes)[keyof typeof PodyardErrorCodes]
   ) => {
     it(`maps ${status} to ${expectedCode}`, async () => {
-      const client = new PodyardClient({
+      const client = new Podyard({
         apiKey: "pyd_test_key",
         fetch: (async () =>
           jsonResponse({ error: "nope" }, { status })) as typeof fetch,
@@ -117,7 +117,7 @@ describe("PodyardClient.request", () => {
   apiCase(500, PodyardErrorCodes.API_ERROR);
 
   it("throws INVALID_JSON for a malformed 200 body", async () => {
-    const client = new PodyardClient({
+    const client = new Podyard({
       apiKey: "pyd_test_key",
       fetch: (async () =>
         new Response("<html>not json</html>", {
@@ -147,7 +147,7 @@ describe("PodyardClient.request", () => {
       ],
       hasMore: false,
     };
-    const client = new PodyardClient({
+    const client = new Podyard({
       apiKey: "pyd_test_key",
       fetch: (async () => jsonResponse(pods)) as typeof fetch,
     });

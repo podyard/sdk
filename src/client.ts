@@ -19,8 +19,8 @@ import type {
   ListParams,
   ListResponse,
   Pod,
-  PodyardClientOptions,
   PodyardErrorBody,
+  PodyardOptions,
   Snapshot,
   Template,
   UsageEvent,
@@ -107,13 +107,13 @@ function mapStatusToCode(status: number): PodyardErrorCode {
   return PodyardErrorCodes.API_ERROR;
 }
 
-export class PodyardClient {
+export class Podyard {
   readonly apiKey: string;
   readonly baseUrl: string;
   private readonly _fetch: typeof fetch;
   private readonly timeoutMs: number;
 
-  constructor(options: PodyardClientOptions) {
+  constructor(options: PodyardOptions) {
     if (!options.apiKey) {
       throw new PodyardError("Podyard apiKey is required", {
         code: PodyardErrorCodes.MISSING_API_KEY,
@@ -132,7 +132,7 @@ export class PodyardClient {
   }
 
   /** Create a client from the `PODYARD_API_KEY` environment variable. */
-  static fromEnv(env: NodeJS.ProcessEnv = process.env): PodyardClient {
+  static fromEnv(env: NodeJS.ProcessEnv = process.env): Podyard {
     const apiKey = env.PODYARD_API_KEY;
     if (!apiKey) {
       throw new PodyardError("Missing PODYARD_API_KEY environment variable", {
@@ -144,7 +144,7 @@ export class PodyardClient {
         },
       });
     }
-    return new PodyardClient({ apiKey, baseUrl: env.PODYARD_BASE_URL });
+    return new Podyard({ apiKey, baseUrl: env.PODYARD_BASE_URL });
   }
 
   // -----------------------------------------------------------------------

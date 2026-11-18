@@ -1,10 +1,17 @@
 # @podyard/sdk
 
+## 0.2.1
+
+### Changed
+
+- Renamed the client to `Podyard`, including its options type
+  (`PodyardOptions`).
+
 ## 0.2.0
 
 ### Added
 
-- **Response validation.** Every `PodyardClient` endpoint now validates its
+- **Response validation.** Every `Podyard` endpoint now validates its
   parsed response against a zod schema in `src/validation.ts`. The SDK never
   coerces or strips data it returns — unknown fields are still tolerated, but a
   structurally malformed API response now fails fast.

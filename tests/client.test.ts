@@ -142,10 +142,9 @@ describe("Podyard.request", () => {
           name: "test",
           status: "running",
           createdAt: "2026-01-01T00:00:00Z",
-          updatedAt: "2026-01-01T00:00:00Z",
         },
       ],
-      hasMore: false,
+      nextCursor: null,
     };
     const client = new Podyard({
       apiKey: "pyd_test_key",

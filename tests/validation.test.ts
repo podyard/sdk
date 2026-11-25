@@ -18,7 +18,6 @@ const VALID_POD = {
   name: "worker",
   status: "running",
   templateId: null,
-  updatedAt: "2026-01-02T00:00:00.000Z",
 };
 
 describe("isoTimestamp", () => {
@@ -115,9 +114,7 @@ describe("schema coverage", () => {
         id: "snap_1",
         name: "nightly",
         podId: "pod_1",
-        retained: true,
         sizeBytes: 1024,
-        updatedAt: "2026-01-01T00:00:00.000Z",
       }).success
     ).toBe(true);
   });
@@ -126,9 +123,8 @@ describe("schema coverage", () => {
     const schema = listResponseSchema(podSchema);
     expect(
       schema.safeParse({
-        hasMore: false,
         items: [VALID_POD],
-        next: null,
+        nextCursor: null,
       }).success
     ).toBe(true);
   });

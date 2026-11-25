@@ -68,9 +68,15 @@ export const podSchema = z.object({
   lastActivityAt: maybeString,
   metadata: z.record(z.string(), z.unknown()).nullish(),
   name: z.string(),
-  status: z.enum(["running", "sleeping", "stopped", "error"]),
+  status: z.enum([
+    "creating",
+    "running",
+    "sleeping",
+    "stopping",
+    "stopped",
+    "error",
+  ]),
   templateId: maybeString,
-  updatedAt: isoTimestamp,
 });
 
 export const snapshotSchema = z.object({
@@ -78,9 +84,7 @@ export const snapshotSchema = z.object({
   id: z.string().min(1),
   name: maybeString,
   podId: z.string().min(1),
-  retained: z.boolean(),
   sizeBytes: z.number().int().nonnegative().nullish(),
-  updatedAt: isoTimestamp,
 });
 
 export const templateSchema = z.object({
@@ -91,7 +95,6 @@ export const templateSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
   snapshotId: z.string().min(1),
-  updatedAt: isoTimestamp,
   visibility: z.enum(["private", "public"]),
 });
 
@@ -101,19 +104,17 @@ export const webhookSchema = z.object({
   events: z.array(z.string()),
   id: z.string().min(1),
   lastDeliveredAt: maybeString,
-  lastError: maybeString,
-  updatedAt: isoTimestamp,
   url: z.string().min(1),
 });
 
 export const usageEventSchema = z.object({
-  amount: z.number(),
-  apiKeyId: z.string().min(1),
-  billingUnit: z.string(),
   createdAt: isoTimestamp,
-  eventType: z.enum(["exec", "fs_write", "fs_read", "snapshot", "fork"]),
+  eventType: z.string(),
   id: z.number(),
+  meter: z.string(),
   podId: maybeString,
+  reportedAt: maybeString,
+  value: z.number(),
 });
 
 export const apiKeySchema = z.object({
@@ -122,41 +123,35 @@ export const apiKeySchema = z.object({
   kind: z.enum(["live", "test"]),
   label: z.string(),
   plan: z.string(),
-  revokedAt: maybeString,
-  updatedAt: isoTimestamp,
+  prefix: z.string(),
 });
 
 export const planLimitsSchema = z.object({
+  execMaxConcurrency: z.number().int().nonnegative(),
+  execMaxOutputBytes: z.number().int().nonnegative(),
   execTimeoutSeconds: z.number().int().nonnegative(),
-  fsMaxFileSizeMb: z.number().int().nonnegative(),
+  fork: z.boolean(),
+  fsMaxFileBytes: z.number().int().nonnegative(),
+  fsMaxTotalBytes: z.number().int().nonnegative(),
   maxConcurrentPods: z.number().int().nonnegative(),
   maxLifetimeHours: z.number().int().nonnegative(),
-  maxPodSizeGb: z.number().int().nonnegative(),
-  maxSnapshotCount: z.number().int().nonnegative(),
+  rateLimitBurst: z.number().int().nonnegative(),
   rateLimitRpm: z.number().int().nonnegative(),
   sleepAfterMinutes: z.number().int().nonnegative(),
-  webhooksPerKey: z.number().int().nonnegative(),
-});
-
-export const planSchema = z.object({
-  availableAtLaunch: z.boolean(),
-  blurb: z.string(),
-  contactSales: z.boolean(),
-  id: z.string().min(1),
-  limits: planLimitsSchema,
-  name: z.string(),
-  priceAnnualCents: z.number().int().nonnegative().nullable(),
-  priceMonthlyCents: z.number().int().nonnegative(),
+  sleepWake: z.boolean(),
+  snapshotQuota: z.number().int().nonnegative(),
+  storageGiB: z.number().int().nonnegative(),
+  templateQuota: z.number().int().nonnegative(),
 });
 
 export const limitsResponseSchema = z.object({
-  currentUsage: z.object({
-    concurrentPods: z.number().int().nonnegative(),
+  limits: planLimitsSchema,
+  plan: z.enum(["free", "solo", "team", "enterprise"]),
+  usage: z.object({
+    activePods: z.number().int().nonnegative(),
+    currentPeriod: z.record(z.string(), z.unknown()),
     snapshots: z.number().int().nonnegative(),
-    execsToday: z.number().int().nonnegative(),
-    webhooks: z.number().int().nonnegative(),
   }),
-  plan: planSchema,
 });
 
 /**
@@ -166,28 +161,35 @@ export const limitsResponseSchema = z.object({
 export function listResponseSchema<T extends z.ZodTypeAny>(
   item: T
 ): z.ZodType<{
-  hasMore: boolean;
   items: z.infer<T>[];
-  next?: string | null;
+  nextCursor?: string | null;
 }> {
   return z.object({
-    hasMore: z.boolean(),
     items: z.array(item),
-    next: z.string().nullish(),
+    nextCursor: z.string().nullish(),
   });
 }
 
 export const execResultSchema = z.object({
+  argv: z.array(z.string()),
   durationMs: z.number().nonnegative(),
   exitCode: z.number().int(),
+  finishedAt: isoTimestamp,
+  id: z.string().min(1),
+  podId: z.string().min(1),
+  startedAt: isoTimestamp,
   stderr: z.string(),
-  stderrBytes: z.number().int().nonnegative(),
   stdout: z.string(),
-  stdoutBytes: z.number().int().nonnegative(),
 });
 
-export const forkSnapshotResponseSchema = z.object({
-  children: z.array(podSchema),
+export const forkResponseSchema = z.object({
+  children: z.array(
+    z.object({
+      id: z.string().min(1),
+      status: podSchema.shape.status,
+    })
+  ),
+  parentPodId: z.string().min(1),
 });
 
 export const createApiKeyResponseSchema = apiKeySchema.extend({

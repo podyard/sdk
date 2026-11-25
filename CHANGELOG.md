@@ -1,5 +1,42 @@
 # @podyard/sdk
 
+## 0.3.0
+
+### Changed
+
+- **Wire contract aligned with the live v1 API.** All types and zod schemas now
+  match the production wire as served by `api.podyard.dev`, not the stale OpenAPI
+  spec. The SDK is strictly a client of the public API — it has no knowledge of
+  the engine.
+- **`Pod`**: dropped `updatedAt` (not present on the wire).
+- **`ExecRequest`**: now `{ argv, stream?, stdin?, timeoutMs? }`. Dropped `cwd`,
+  `env`, `timeoutSeconds` (not surfaced by the API).
+- **`ExecResult`**: now `{ id, podId, argv, exitCode, stdout, stderr, startedAt,
+  finishedAt, durationMs }`. Dropped `stdoutBytes` / `stderrBytes`.
+- **`ExecEvent`**: now a proper discriminated union
+  (`{ type: "stdout" | "stderr", data } | { type: "exit", exitCode }`).
+- **`Snapshot`**: dropped `retained` and `updatedAt`.
+- **`CreateSnapshotRequest`**: simplified to `{ name? }`.
+- **`ForkRequest` / `ForkResponse`**: renamed from `ForkSnapshotRequest` /
+  `ForkSnapshotResponse`. Fork now takes `{ count?, argv? }` and returns
+  `{ parentPodId, children: [{ id, status }] }`.
+- **`ListResponse`**: `{ items, nextCursor? }` — dropped `hasMore`, renamed
+  `next` → `nextCursor`.
+- **`LimitsResponse`**: replaced the plan-object + `currentUsage` shape with
+  `{ plan, limits, usage }` as served by `GET /v1/limits`.
+- **`ApiKey`**: dropped `revokedAt` / `updatedAt`, added `prefix`.
+- **`Template`**: dropped `updatedAt`.
+- **`Webhook`**: dropped `updatedAt` and `lastError`.
+- **`UsageEvent`**: aligned to the live wire
+  (`{ id, podId, meter, value, eventType, reportedAt, createdAt }`).
+- **`CreatePodResponse`**: now includes the optional `engineSessionId` field
+  returned on create.
+- **`fs.write`**: sends raw bytes (`application/octet-stream`), UTF-8 text
+  (`text/plain`), or a JSON `FsWriteRequest` — no longer encodes bytes as a JSON
+  array.
+- **`execStream`**: forces `stream: true` in the request body so the API always
+  returns NDJSON.
+
 ## 0.2.1
 
 ### Changed

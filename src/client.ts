@@ -13,8 +13,8 @@ import type {
   ExecEvent,
   ExecRequest,
   ExecResult,
-  ForkSnapshotRequest,
-  ForkSnapshotResponse,
+  ForkRequest,
+  ForkResponse,
   FsWriteRequest,
   ListParams,
   ListResponse,
@@ -30,7 +30,7 @@ import {
   apiKeySchema,
   createApiKeyResponseSchema,
   execResultSchema,
-  forkSnapshotResponseSchema,
+  forkResponseSchema,
   limitsResponseSchema,
   listResponseSchema,
   podSchema,
@@ -213,26 +213,30 @@ export class Podyard {
         const ab = await res.arrayBuffer();
         return new Uint8Array(ab);
       },
-      write: (
+      write: async (
         id: string,
         path: string,
         input: FsWriteRequest | Uint8Array | string
       ): Promise<void> => {
         assertPodId(id);
-        let body: string;
+        let body: BodyInit;
         let contentType: string;
         if (input instanceof Uint8Array) {
-          // Convert bytes to a JSON byte array for the engine
-          body = JSON.stringify(Array.from(input));
-          contentType = "application/json";
+          // The Podyard API accepts raw bytes for filesystem writes.
+          body = input.buffer.slice(
+            input.byteOffset,
+            input.byteOffset + input.byteLength
+          ) as ArrayBuffer;
+          contentType = "application/octet-stream";
         } else if (typeof input === "string") {
-          body = JSON.stringify({ content: input, encoding: "utf-8" });
-          contentType = "application/json";
+          body = input;
+          contentType = "text/plain";
         } else {
+          // A structured FsWriteRequest is sent as a JSON document.
           body = JSON.stringify(input);
           contentType = "application/json";
         }
-        return this.request<void>(
+        await this.request<void>(
           `/v1/pods/${encodeURIComponent(id)}/fs/${encodePath(path)}`,
           {
             method: "PUT",
@@ -249,7 +253,7 @@ export class Podyard {
         );
       },
       /**
-       * Directory listing is not yet supported by the engine.
+       * Directory listing is not yet supported by the API.
        * @throws PodyardError with code "not_implemented"
        */
       list(_id: string, _path: string): never {
@@ -288,15 +292,12 @@ export class Podyard {
         listResponseSchema(snapshotSchema)
       );
     },
-    fork: (
-      id: string,
-      input: ForkSnapshotRequest = {}
-    ): Promise<ForkSnapshotResponse> => {
+    fork: (id: string, input: ForkRequest = {}): Promise<ForkResponse> => {
       assertPodId(id);
-      return this.request<ForkSnapshotResponse>(
+      return this.request<ForkResponse>(
         `/v1/pods/${encodeURIComponent(id)}/fork`,
         { method: "POST", body: JSON.stringify(input) },
-        forkSnapshotResponseSchema
+        forkResponseSchema
       );
     },
     sleep: (id: string): Promise<Pod> => {
@@ -330,15 +331,12 @@ export class Podyard {
         snapshotSchema
       );
     },
-    fork: (
-      id: string,
-      input: ForkSnapshotRequest = {}
-    ): Promise<ForkSnapshotResponse> => {
+    fork: (id: string, input: ForkRequest = {}): Promise<ForkResponse> => {
       assertSnapshotId(id);
-      return this.request<ForkSnapshotResponse>(
+      return this.request<ForkResponse>(
         `/v1/snapshots/${encodeURIComponent(id)}/fork`,
         { method: "POST", body: JSON.stringify(input) },
-        forkSnapshotResponseSchema
+        forkResponseSchema
       );
     },
   };
@@ -484,9 +482,13 @@ export class Podyard {
     input: ExecRequest
   ): AsyncGenerator<ExecEvent, void, unknown> {
     assertPodId(id);
+    // The API returns NDJSON only when `stream` is truthy.
     const res = await this.rawRequest(
       `/v1/pods/${encodeURIComponent(id)}/exec`,
-      { method: "POST", body: JSON.stringify(input) },
+      {
+        method: "POST",
+        body: JSON.stringify({ stream: true, ...input }),
+      },
       "application/x-ndjson"
     );
     if (!res.body) {

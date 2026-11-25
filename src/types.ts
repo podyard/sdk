@@ -33,7 +33,13 @@ export interface PodyardErrorBody {
 // Pods
 // ---------------------------------------------------------------------------
 
-export type PodStatus = "running" | "sleeping" | "stopped" | "error";
+export type PodStatus =
+  | "creating"
+  | "running"
+  | "sleeping"
+  | "stopping"
+  | "stopped"
+  | "error";
 
 export interface Pod {
   createdAt: string;
@@ -44,7 +50,6 @@ export interface Pod {
   name: string;
   status: PodStatus;
   templateId?: string | null;
-  updatedAt: string;
 }
 
 export interface CreatePodRequest {
@@ -53,7 +58,10 @@ export interface CreatePodRequest {
   templateId?: string;
 }
 
-export interface CreatePodResponse extends Pod {}
+export interface CreatePodResponse extends Pod {
+  /** Engine session ID. Only present on the create response. */
+  engineSessionId?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Exec
@@ -61,30 +69,33 @@ export interface CreatePodResponse extends Pod {}
 
 export interface ExecRequest {
   argv: string[];
-  cwd?: string;
-  env?: Record<string, string>;
+  /** Optional stdin bytes for the process (UTF-8 string or byte array). */
+  stdin?: string;
   /**
    * When true, the response is an NDJSON stream of ExecEvent lines.
-   * The SDK returns a ReadableStream<string>.
+   * Use `client.execStream()` for the SDK's async-iterator wrapper.
    */
   stream?: boolean;
-  timeoutSeconds?: number;
+  /** Timeout in milliseconds. */
+  timeoutMs?: number;
 }
 
 export interface ExecResult {
+  argv: string[];
   durationMs: number;
   exitCode: number;
+  finishedAt: string;
+  id: string;
+  podId: string;
+  startedAt: string;
   stderr: string;
-  stderrBytes: number;
   stdout: string;
-  stdoutBytes: number;
 }
 
-export interface ExecEvent {
-  data?: string;
-  exitCode?: number;
-  type: "stdout" | "stderr" | "exit";
-}
+export type ExecEvent =
+  | { type: "stdout"; data: string }
+  | { type: "stderr"; data: string }
+  | { type: "exit"; exitCode: number };
 
 // ---------------------------------------------------------------------------
 // Filesystem
@@ -110,26 +121,28 @@ export interface Snapshot {
   id: string;
   name?: string | null;
   podId: string;
-  retained: boolean;
   sizeBytes?: number | null;
-  updatedAt: string;
 }
 
 export interface CreateSnapshotRequest {
   name?: string;
-  retain?: boolean;
 }
 
-export interface ForkSnapshotRequest {
+export interface ForkRequest {
   /**
-   * When forking a pod, the command to run in each child.
+   * Command to run in each child. Must be non-empty when provided;
+   * the API defaults to `["true"]` (a no-op) when omitted.
    */
   argv?: string[];
+  /**
+   * Number of child pods to create (1..64). Defaults to 1.
+   */
   count?: number;
 }
 
-export interface ForkSnapshotResponse {
-  children: Pod[];
+export interface ForkResponse {
+  children: Array<{ id: string; status: PodStatus }>;
+  parentPodId: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +157,6 @@ export interface Template {
   id: string;
   name: string;
   snapshotId: string;
-  updatedAt: string;
   visibility: "private" | "public";
 }
 
@@ -162,9 +174,8 @@ export interface CreateTemplateRequest {
 // ---------------------------------------------------------------------------
 
 export interface ListResponse<T> {
-  hasMore: boolean;
   items: T[];
-  next?: string | null;
+  nextCursor?: string | null;
 }
 
 export interface ListParams {
@@ -177,50 +188,49 @@ export interface ListParams {
 // ---------------------------------------------------------------------------
 
 export interface UsageEvent {
-  amount: number;
-  apiKeyId: string;
-  billingUnit: string;
   createdAt: string;
-  eventType: "exec" | "fs_write" | "fs_read" | "snapshot" | "fork";
+  eventType: string;
   id: number;
+  meter: string;
   podId?: string | null;
+  reportedAt?: string | null;
+  value: number;
 }
 
 // ---------------------------------------------------------------------------
 // Limits
 // ---------------------------------------------------------------------------
 
+export type PlanId = "free" | "solo" | "team" | "enterprise";
+
 export interface PlanLimits {
+  execMaxConcurrency: number;
+  execMaxOutputBytes: number;
   execTimeoutSeconds: number;
-  fsMaxFileSizeMb: number;
+  fork: boolean;
+  fsMaxFileBytes: number;
+  fsMaxTotalBytes: number;
   maxConcurrentPods: number;
   maxLifetimeHours: number;
-  maxPodSizeGb: number;
-  maxSnapshotCount: number;
+  rateLimitBurst: number;
   rateLimitRpm: number;
   sleepAfterMinutes: number;
-  webhooksPerKey: number;
+  sleepWake: boolean;
+  snapshotQuota: number;
+  storageGiB: number;
+  templateQuota: number;
 }
 
-export interface Plan {
-  availableAtLaunch: boolean;
-  blurb: string;
-  contactSales: boolean;
-  id: string;
-  limits: PlanLimits;
-  name: string;
-  priceAnnualCents: number | null;
-  priceMonthlyCents: number;
+export interface CurrentUsage {
+  activePods: number;
+  currentPeriod: Record<string, unknown>;
+  snapshots: number;
 }
 
 export interface LimitsResponse {
-  currentUsage: {
-    concurrentPods: number;
-    snapshots: number;
-    execsToday: number;
-    webhooks: number;
-  };
-  plan: Plan;
+  limits: PlanLimits;
+  plan: PlanId;
+  usage: CurrentUsage;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,8 +243,6 @@ export interface Webhook {
   events: string[];
   id: string;
   lastDeliveredAt?: string | null;
-  lastError?: string | null;
-  updatedAt: string;
   url: string;
 }
 
@@ -254,8 +262,8 @@ export interface ApiKey {
   kind: "live" | "test";
   label: string;
   plan: string;
-  revokedAt?: string | null;
-  updatedAt: string;
+  /** Masked key prefix, e.g. `pyd_live_XBdZ…`. */
+  prefix: string;
 }
 
 export interface CreateApiKeyRequest {

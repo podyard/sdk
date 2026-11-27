@@ -154,3 +154,73 @@ describe("Podyard.request", () => {
     await expect(client.pods.list()).resolves.toEqual(pods);
   });
 });
+
+describe("opaque server-issued IDs", () => {
+  // Regression: live pod IDs are wider than Crockford ULIDs (they contain
+  // letters like I, L and U), e.g. pod_MWZ29Z9LJANIDID9UGVA7AAAAA.
+  // The SDK must treat IDs as opaque and pass them through verbatim instead
+  // of rejecting them client-side.
+  const LIVE_POD_ID = "pod_MWZ29Z9LJANIDID9UGVA7AAAAA";
+  const LIVE_SNAPSHOT_ID = "snap_MWZ29Z9LJANIDID9UGVA7AAAAA";
+
+  const stubFetch = (body: unknown) =>
+    (async () => jsonResponse(body)) as typeof fetch;
+
+  it("accepts a pod ID containing I, L, U and forwards it verbatim", async () => {
+    let requested = "";
+    const body = jsonResponse({
+      id: LIVE_POD_ID,
+      name: "demo",
+      status: "running",
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    const client = new Podyard({
+      apiKey: "pyd_test_key",
+      fetch: ((url: string | URL | RequestInfo) => {
+        requested = String(url);
+        return body;
+      }) as typeof fetch,
+    });
+
+    const pod = await client.pods.get(LIVE_POD_ID);
+    expect(pod.id).toBe(LIVE_POD_ID);
+    expect(requested).toContain(`/v1/pods/${LIVE_POD_ID}`);
+  });
+
+  it("rejects a pod ID with an obviously invalid shape", () => {
+    const client = new Podyard({
+      apiKey: "pyd_test_key",
+      fetch: stubFetch({}) as typeof fetch,
+    });
+
+    // The ID shape check is a client-side guard, so it throws synchronously
+    // before any network call.
+    let caught: unknown;
+    try {
+      client.pods.get("not-a-pod-id");
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(PodyardError);
+    expect((caught as PodyardError).code).toBe(
+      PodyardErrorCodes.VALIDATION_FAILED
+    );
+    expect((caught as PodyardError).scope).toBe("podyard");
+  });
+
+  it("accepts a snapshot ID containing I, L, U", async () => {
+    const client = new Podyard({
+      apiKey: "pyd_test_key",
+      fetch: stubFetch({
+        id: LIVE_SNAPSHOT_ID,
+        name: "nightly",
+        podId: LIVE_POD_ID,
+        createdAt: "2026-01-01T00:00:00Z",
+      }) as typeof fetch,
+    });
+
+    const snap = await client.snapshots.get(LIVE_SNAPSHOT_ID);
+    expect(snap.id).toBe(LIVE_SNAPSHOT_ID);
+  });
+});

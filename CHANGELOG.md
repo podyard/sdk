@@ -1,5 +1,18 @@
 # @podyard/sdk
 
+## 0.3.1
+
+### Fixed
+
+- **ID validation no longer rejects server-issued IDs.** Pod, snapshot and
+  template IDs were validated against a Crockford-ULID charset
+  (`[0-9A-HJKMNP-TV-Z]{26}`), but live pod IDs use a wider alphabet (they can
+  contain `I`, `L`, `U` — e.g. `pod_MWZ29Z9LJANIDID9UGVA7AAAAA`). Every pod
+  operation that took an API-returned ID failed client-side with
+  `validation_failed`. IDs are now treated as opaque server-generated values:
+  the shape check accepts `<prefix>_<body>` with any URL-safe body, so IDs the
+  API returns are always passed through verbatim.
+
 ## 0.3.0
 
 ### Changed

@@ -47,7 +47,6 @@ import {
 const DEFAULT_BASE_URL = "https://api.podyard.dev";
 
 const TRAILING_SLASH = /\/$/u;
-const ULID = "0-9A-HJKMNP-TV-Z";
 
 /** Parse a Podyard error envelope into a PodyardError. */
 function parseApiError(
@@ -654,10 +653,13 @@ function encodePath(path: string): string {
     .join("/");
 }
 
-const ULID_PATTERN = `[${ULID}]{26}`;
-const POD_ID_RE = new RegExp(`^pod_${ULID_PATTERN}$`, "u");
-const SNAPSHOT_ID_RE = new RegExp(`^snap_${ULID_PATTERN}$`, "u");
-const TEMPLATE_ID_RE = new RegExp(`^tpl_${ULID_PATTERN}$`, "u");
+// The server's ID charset is wider than a Crockford ULID (observed letters
+// I, L, U in live pod IDs), so IDs travel as opaque, server-generated values.
+// We validate the shape (prefix + non-empty body) to catch local typos,
+// but never reject an ID the API itself returned.
+const POD_ID_RE = /^pod_[A-Za-z0-9_-]+$/u;
+const SNAPSHOT_ID_RE = /^snap_[A-Za-z0-9_-]+$/u;
+const TEMPLATE_ID_RE = /^tpl_[A-Za-z0-9_-]+$/u;
 
 function assertPodId(id: string): boolean {
   if (!POD_ID_RE.test(id)) {
@@ -665,7 +667,7 @@ function assertPodId(id: string): boolean {
       code: "validation_failed" as PodyardErrorCode,
       statusCode: 422,
       public: {
-        message: `Invalid pod ID: ${id}. Expected format: pod_<ULID>.`,
+        message: `Invalid pod ID: ${id}. Expected format: pod_<id>.`,
       },
     });
   }
@@ -678,7 +680,7 @@ function assertSnapshotId(id: string): boolean {
       code: "validation_failed" as PodyardErrorCode,
       statusCode: 422,
       public: {
-        message: `Invalid snapshot ID: ${id}. Expected format: snap_<ULID>.`,
+        message: `Invalid snapshot ID: ${id}. Expected format: snap_<id>.`,
       },
     });
   }
@@ -691,7 +693,7 @@ function assertTemplateId(id: string): boolean {
       code: "validation_failed" as PodyardErrorCode,
       statusCode: 422,
       public: {
-        message: `Invalid template ID: ${id}. Expected format: tpl_<ULID>.`,
+        message: `Invalid template ID: ${id}. Expected format: tpl_<id>.`,
       },
     });
   }
